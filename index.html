@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Centered Form Elements</title>
+    <title>API Demo with Vue</title>
     <!-- Tailwind CSS via CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Vue.js via CDN -->
@@ -40,19 +40,37 @@
             
             <!-- Button -->
             <button
-                @click="handleClick"
-                class="w-full px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
+                @click="fetchData"
+                :disabled="isLoading"
+                class="w-full px-4 py-2 flex items-center justify-center bg-blue-500 text-white rounded-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors disabled:opacity-50"
             >
-                {{ language === 'en' ? 'Click Me' : '点击我' }}
+                <svg v-if="isLoading" class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                {{ language === 'en' ? 
+                  (isLoading ? 'Fetching...' : 'Fetch API Data') : 
+                  (isLoading ? '获取中...' : '获取API数据') 
+                }}
             </button>
             
             <!-- Second Input -->
             <input 
                 v-model="secondInput"
                 type="text" 
-                :placeholder="language === 'en' ? 'Second input field...' : '第二个输入框...'"
-                class="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm"
+                :placeholder="language === 'en' ? 'API response will appear here...' : 'API响应将显示在这里...'"
+                readonly
+                class="w-full px-4 py-2 rounded-lg border border-gray-300 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm"
             >
+            
+            <!-- Status Message -->
+            <div v-if="statusMessage" class="text-center text-sm px-4 py-2 rounded-lg"
+                :class="{
+                    'text-green-700 bg-green-100': statusType === 'success',
+                    'text-red-700 bg-red-100': statusType === 'error'
+                }">
+                {{ statusMessage }}
+            </div>
         </div>
     </div>
 
@@ -63,24 +81,61 @@
             setup() {
                 const firstInput = ref('');
                 const secondInput = ref('');
-                const language = ref('en'); // 'en' or 'zh'
+                const language = ref('en');
+                const isLoading = ref(false);
+                const statusMessage = ref('');
+                const statusType = ref('');
                 
-                const handleClick = () => {
-                    const message = language.value === 'en' 
-                        ? `First input: ${firstInput.value}\nSecond input: ${secondInput.value}`
-                        : `第一个输入: ${firstInput.value}\n第二个输入: ${secondInput.value}`;
-                    alert(message);
+                const fetchData = async () => {
+                    isLoading.value = true;
+                    statusMessage.value = '';
+                    
+                    try {
+                        const response = await fetch('https://fake-json-api.mock.beeceptor.com/users');
+                        
+                        if (!response.ok) {
+                            throw new Error(language.value === 'en' 
+                                ? `API error: ${response.status} ${response.statusText}` 
+                                : `API错误: ${response.status} ${response.statusText}`);
+                        }
+                        
+                        const data = await response.json();
+                        secondInput.value = JSON.stringify(data);
+                        
+                        // Show success message
+                        statusType.value = 'success';
+                        statusMessage.value = language.value === 'en' 
+                            ? 'Data fetched successfully!' 
+                            : '数据获取成功！';
+                    } catch (error) {
+                        secondInput.value = '';
+                        statusType.value = 'error';
+                        statusMessage.value = language.value === 'en' 
+                            ? `Error: ${error.message}` 
+                            : `错误: ${error.message}`;
+                    } finally {
+                        isLoading.value = false;
+                        
+                        // Clear status message after 3 seconds
+                        setTimeout(() => {
+                            statusMessage.value = '';
+                        }, 3000);
+                    }
                 };
                 
                 const toggleLanguage = () => {
                     language.value = language.value === 'en' ? 'zh' : 'en';
+                    statusMessage.value = ''; // Clear any existing message on language change
                 };
                 
                 return {
                     firstInput,
                     secondInput,
                     language,
-                    handleClick,
+                    isLoading,
+                    statusMessage,
+                    statusType,
+                    fetchData,
                     toggleLanguage
                 };
             }
